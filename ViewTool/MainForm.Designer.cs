@@ -79,6 +79,7 @@
             this.MainMenuStrip = this.msMainMenu;
             this.Name = "MainForm";
             this.Text = "ViewTool";
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.MainForm_KeyDown);
             this.pnlImageView.ResumeLayout(false);
             this.pnlImageView.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbImageView)).EndInit();

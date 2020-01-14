@@ -1,10 +1,11 @@
-Custom Transparency
-Custom Zoom
-
-Check current Transparency menu item
-Check current Zoom menu item
 
 File Drag'n drop support
 
 Possibility to zoom inside form (show scrollbars)
  - Max size of WinForm is desktop resolution
+
+
+ More features
+ =============
+ Auto align with current screen contents
+ Show difference with screen contents

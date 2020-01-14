@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using Microsoft.VisualBasic;
 using ViewTool.Properties;
 
 namespace ViewTool
@@ -44,7 +45,10 @@ namespace ViewTool
         private int _imageHeightToFullHeight;
 
         private Dictionary<string, ToolStripMenuItem> _menuItems;
+        private ToolStripMenuItem _currentTransparencyMenuItem;
         private ToolStripMenuItem _currentZoomMenuItem;
+        private double _customTransparencyValue = 0;
+        private double _customZoomValue = 1;
 
         private uint _initialWindowStyle;
 
@@ -56,26 +60,45 @@ namespace ViewTool
         {
             InitializeComponent();
 
-            InitMainMenu();
-            InitContextMenu();
-
             _imageWidthToFullWidth = (Width - ClientSize.Width);
             _imageHeightToFullHeight = (Height - ClientSize.Height + msMainMenu.Height);
+
+            InitMainMenu();
+            InitContextMenu();
 
             if (Clipboard.ContainsImage())
                 GetFromClipboard();
             else
                 LoadImage(GetBackgroundImage());
         }
-        private static Image GetBackgroundImage()
-        {
-            var assembly = Assembly.GetExecutingAssembly();
-            string name = assembly.GetManifestResourceNames().Where(n => n.Contains("BackgroundImage")).First();
-            var stream = assembly.GetManifestResourceStream(name);
-            var image = Bitmap.FromStream(stream);
-            return image;
-        }
 
+
+        private void MainForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Escape:
+                    if (MenuItem("Clickthrough").Checked)
+                        DisableClickthrough();
+                    break;
+                case Keys.Pause:
+                    ToggleClickthrough();
+                    break;
+
+                case Keys.Left:
+                    this.DesktopLocation += (e.Shift ? new Size(-10, 0) : new Size(-1, 0));
+                    break;
+                case Keys.Right:
+                    this.DesktopLocation += (e.Shift ? new Size(10, 0) : new Size(1, 0));
+                    break;
+                case Keys.Up:
+                    this.DesktopLocation += (e.Shift ? new Size(0, -10) : new Size(0, -1));
+                    break;
+                case Keys.Down:
+                    this.DesktopLocation += (e.Shift ? new Size(0, 10) : new Size(0, 1));
+                    break;
+            }
+        }
 
         protected override void WndProc(ref Message m)
         {
@@ -99,8 +122,11 @@ namespace ViewTool
                     break;
             }
         }
+
         private void HandleWindowResizing(ref Message m)
         {
+            ClearCurrentZoomCheck();
+
             if (!Control.ModifierKeys.HasFlag(Keys.Shift))
             {
                 SetImageSizeMode(keepAspectRatio: false);
@@ -174,6 +200,8 @@ namespace ViewTool
                 CreateMenuItem("Transparency50", "50 %", null, () => SetTransparency(50)),
                 CreateMenuItem("Transparency75", "75 %", null, () => SetTransparency(75))
             });
+            var customTransparencyMenuItem = CreateMenuItem("TransparencyCustom", "Custom", null, SetCustomTransparency);
+            MenuItem("Transparency").DropDownItems.Add(customTransparencyMenuItem);
 
             var zoomMenuItem = MenuItem("Zoom");
             int[] zoomValues = { 5, 10, 25, 50, 75, 100, 125, 150, 175, 200, 300, 500 };
@@ -262,26 +290,79 @@ namespace ViewTool
             else
                 WinApi.DisableClickThrough(this, _initialWindowStyle);
         }
-        private void SetTransparency(int transparencyValue)
+        private void DisableClickthrough()
         {
-            this.Opacity = (double)(100 - transparencyValue) / 100d;
+            MenuItem("Clickthrough").Checked = true;
+            ToggleClickthrough();
         }
-        private void SetZoom(int zoom)
+        private void ClearCurrentTransparencyCheck()
+        {
+            if (_currentTransparencyMenuItem != null)
+                _currentTransparencyMenuItem.Checked = false;
+        }
+        private void SetTransparency(double transparencyValue)
+        {
+            if (transparencyValue >= 99)
+                return;
+
+            ClearCurrentTransparencyCheck();
+
+            this.Opacity = (double)(100 - transparencyValue) / 100d;
+
+            _currentTransparencyMenuItem = MenuItem($"Transparency{transparencyValue}");
+            if (_currentTransparencyMenuItem == null)
+            {
+                _currentTransparencyMenuItem = MenuItem("TransparencyCustom");
+                _customTransparencyValue = (transparencyValue / 100d);
+            }
+            _currentTransparencyMenuItem.Checked = true;
+        }
+        private void SetCustomTransparency()
+        {
+            try
+            {
+                string enteredTransparency = Interaction.InputBox(
+                    "Custom Transparency value\r\n(0 % opaque, 100 % fully transparent)",
+                    "Set Custom Transparency",
+                    (_customTransparencyValue * 100).ToString("0.00")
+                    );
+                double transparency = double.Parse(enteredTransparency);
+                SetTransparency(transparency);
+            }
+            catch (Exception) { }
+        }
+        private void ClearCurrentZoomCheck()
         {
             if (_currentZoomMenuItem != null)
                 _currentZoomMenuItem.Checked = false;
+        }
+        private void SetZoom(double zoom)
+        {
+            ClearCurrentZoomCheck();
 
-            double percent = (zoom / 100d);
+            double scale = (zoom / 100d);
             this.ClientSize = new Size(
-                (int)(pbImageView.Image.Width * percent),
-                (int)(pbImageView.Image.Height * percent) + msMainMenu.Height
+                (int)(pbImageView.Image.Width * scale),
+                (int)(pbImageView.Image.Height * scale) + msMainMenu.Height
                 );
 
-            _currentZoomMenuItem = (MenuItem($"Zoom{zoom}") ?? MenuItem("ZoomCustom"));
+            _currentZoomMenuItem = MenuItem($"Zoom{zoom}");
+            if (_currentZoomMenuItem == null)
+            {
+                _currentZoomMenuItem = MenuItem("ZoomCustom");
+                _customZoomValue = scale;
+            }
             _currentZoomMenuItem.Checked = true;
         }
         private void SetCustomZoom()
         {
+            try
+            {
+                string enteredZoom = Interaction.InputBox("Custom Zoom value (%)", "Set Custom Zoom", (_customZoomValue * 100).ToString("#.00"));
+                double zoom = double.Parse(enteredZoom);
+                SetZoom(zoom);
+            }
+            catch (Exception) { }
         }
 
 
@@ -292,7 +373,8 @@ namespace ViewTool
 
         private ToolStripMenuItem MenuItem(string name)
         {
-            return _menuItems[name];
+            _menuItems.TryGetValue(name, out var result);
+            return result;
         }
         private ToolStripMenuItem CreateMenuItem(string name, string text, params ToolStripItem[] subItems)
         {
@@ -312,5 +394,15 @@ namespace ViewTool
         {
             return new ToolStripSeparator();
         }
+
+        private static Image GetBackgroundImage()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            string name = assembly.GetManifestResourceNames().First(n => n.Contains("BackgroundImage"));
+            var stream = assembly.GetManifestResourceStream(name);
+            var image = Bitmap.FromStream(stream);
+            return image;
+        }
+
     }
 }
