@@ -1,5 +1,4 @@
 
-File Drag'n drop support
 
 Possibility to zoom inside form (show scrollbars)
  - Max size of WinForm is desktop resolution

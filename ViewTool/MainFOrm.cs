@@ -99,6 +99,24 @@ namespace ViewTool
                     break;
             }
         }
+        private void MainForm_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.Bitmap))
+                e.Effect = DragDropEffects.Copy;
+        }
+        private void MainForm_DragDrop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Any())
+                    LoadImage(files.First());
+            }
+            else if (e.Data.GetDataPresent(DataFormats.Bitmap))
+            {
+                var bitmap = e.Data.GetData(DataFormats.Bitmap) as Bitmap;
+                LoadImage(bitmap);
+            }
+        }
 
         protected override void WndProc(ref Message m)
         {
@@ -123,51 +141,6 @@ namespace ViewTool
             }
         }
 
-        private void HandleWindowResizing(ref Message m)
-        {
-            ClearCurrentZoomCheck();
-
-            if (!Control.ModifierKeys.HasFlag(Keys.Shift))
-            {
-                SetImageSizeMode(keepAspectRatio: false);
-                base.WndProc(ref m);
-                return;
-            }
-
-            SetImageSizeMode(keepAspectRatio: true);
-
-            var windowRect = (WinApi.RECT)Marshal.PtrToStructure(m.LParam, typeof(WinApi.RECT));
-
-            int widthDiff = Math.Abs(Width - windowRect.Width);
-            if (widthDiff > 0)
-                _resizeInX = true;
-            int heightDiff = Math.Abs(Height - windowRect.Height);
-            if (heightDiff > 0)
-                _resizeInY = true;
-
-            double ratioX = (windowRect.Width - _imageWidthToFullWidth) / (double)pbImageView.Image.Width;
-            double ratioY = (windowRect.Height - _imageHeightToFullHeight) / (double)pbImageView.Image.Height;
-
-            double ratio = 1;
-            if (_resizeInX && _resizeInY)
-                ratio = ratioX < ratioY ? ratioY : ratioX;
-            else if (_resizeInX)
-                ratio = ratioX;
-            else if (_resizeInY)
-                ratio = ratioY;
-
-            windowRect.Width = (int)(pbImageView.Image.Width * ratio + _imageWidthToFullWidth);
-            windowRect.Height = (int)(pbImageView.Image.Height * ratio + _imageHeightToFullHeight);
-
-            Marshal.StructureToPtr(windowRect, m.LParam, false);
-            m.Result = (IntPtr)1;
-        }
-
-        private void SetImageSizeMode(bool keepAspectRatio)
-        {
-            pbImageView.SizeMode = keepAspectRatio ? PictureBoxSizeMode.Zoom : PictureBoxSizeMode.StretchImage;
-        }
-
 
         private void InitMainMenu()
         {
@@ -178,7 +151,8 @@ namespace ViewTool
                     "Image",
                     "&Image",
                     CreateMenuItem("Open","&Open", Shortcut.CtrlO, OpenFile),
-                    CreateMenuItem("FromClipboard","From &Clipboard", Shortcut.CtrlL, GetFromClipboard),
+                    CreateMenuItem("FromClipboard","From &Clipboard", Shortcut.CtrlV, GetFromClipboard),
+                    CreateMenuItem("ToClipboard","To C&lipboard", Shortcut.CtrlC, PasteToClipboard),
                     CreateSeparator(),
                     CreateMenuItem("Exit","&Exit", null, Exit)
                     ),
@@ -233,29 +207,92 @@ namespace ViewTool
         }
         private void GetFromClipboard()
         {
-            if (!Clipboard.ContainsImage())
+            try
             {
-                MessageBox.Show("Current clipboard doesn't contain image data");
-                return;
-            }
+                if (!Clipboard.ContainsImage())
+                {
+                    MessageBox.Show("Current clipboard doesn't contain image data");
+                    return;
+                }
 
-            var image = Clipboard.GetImage();
-            LoadImage(image);
+                var image = Clipboard.GetImage();
+                LoadImage(image);
+            }
+            catch
+            {
+                ShowError("Loading from Clipboard failed");
+            }
+        }
+        private void PasteToClipboard()
+        {
+            try
+            {
+                Clipboard.SetImage(pbImageView.Image);
+            }
+            catch
+            {
+                ShowError("Pasting to Clipboard failed");
+            }
         }
         private void Exit()
         {
+            this.Close();
+        }
+
+        private void HandleWindowResizing(ref Message m)
+        {
+            ClearCurrentZoomCheck();
+
+            if (!Control.ModifierKeys.HasFlag(Keys.Shift))
+            {
+                SetImageSizeMode(keepAspectRatio: false);
+                base.WndProc(ref m);
+                return;
+            }
+
+            SetImageSizeMode(keepAspectRatio: true);
+
+            var windowRect = (WinApi.RECT)Marshal.PtrToStructure(m.LParam, typeof(WinApi.RECT));
+
+            int widthDiff = Math.Abs(Width - windowRect.Width);
+            if (widthDiff > 0)
+                _resizeInX = true;
+            int heightDiff = Math.Abs(Height - windowRect.Height);
+            if (heightDiff > 0)
+                _resizeInY = true;
+
+            double ratioX = (windowRect.Width - _imageWidthToFullWidth) / (double)pbImageView.Image.Width;
+            double ratioY = (windowRect.Height - _imageHeightToFullHeight) / (double)pbImageView.Image.Height;
+
+            double ratio = 1;
+            if (_resizeInX && _resizeInY)
+                ratio = ratioX < ratioY ? ratioY : ratioX;
+            else if (_resizeInX)
+                ratio = ratioX;
+            else if (_resizeInY)
+                ratio = ratioY;
+
+            windowRect.Width = (int)(pbImageView.Image.Width * ratio + _imageWidthToFullWidth);
+            windowRect.Height = (int)(pbImageView.Image.Height * ratio + _imageHeightToFullHeight);
+
+            Marshal.StructureToPtr(windowRect, m.LParam, false);
+            m.Result = (IntPtr)1;
         }
 
         private void LoadImage(string filePath)
         {
-            if (!File.Exists(filePath))
+            try
             {
-                ShowError("File doesn't exist");
-                return;
-            }
+                if (!File.Exists(filePath))
+                {
+                    ShowError("File doesn't exist");
+                    return;
+                }
 
-            var image = Image.FromFile(filePath);
-            LoadImage(image);
+                var image = Image.FromFile(filePath);
+                LoadImage(image);
+            }
+            catch { }
         }
         private void LoadImage(Image image)
         {
@@ -265,6 +302,10 @@ namespace ViewTool
         private void ResetSize()
         {
             SetZoom(100);
+        }
+        private void SetImageSizeMode(bool keepAspectRatio)
+        {
+            pbImageView.SizeMode = keepAspectRatio ? PictureBoxSizeMode.Zoom : PictureBoxSizeMode.StretchImage;
         }
 
 
@@ -397,11 +438,18 @@ namespace ViewTool
 
         private static Image GetBackgroundImage()
         {
-            var assembly = Assembly.GetExecutingAssembly();
-            string name = assembly.GetManifestResourceNames().First(n => n.Contains("BackgroundImage"));
-            var stream = assembly.GetManifestResourceStream(name);
-            var image = Bitmap.FromStream(stream);
-            return image;
+            try
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                string name = assembly.GetManifestResourceNames().First(n => n.Contains("BackgroundImage"));
+                var stream = assembly.GetManifestResourceStream(name);
+                var image = Bitmap.FromStream(stream);
+                return image;
+            }
+            catch
+            {
+                return new Bitmap(1, 1);
+            }
         }
 
     }
