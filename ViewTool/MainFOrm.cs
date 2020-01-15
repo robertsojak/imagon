@@ -48,7 +48,9 @@ namespace ViewTool
         private ToolStripMenuItem _currentTransparencyMenuItem;
         private ToolStripMenuItem _currentZoomMenuItem;
         private double _customTransparencyValue = 0;
+        private double _currentTransparency;
         private double _customZoomValue = 1;
+        private double _currentZoom;
 
         private uint _initialWindowStyle;
 
@@ -70,6 +72,9 @@ namespace ViewTool
                 GetFromClipboard();
             else
                 LoadImage(GetBackgroundImage());
+
+            SetTransparency(0);
+            SetZoom(100);
         }
 
 
@@ -96,6 +101,19 @@ namespace ViewTool
                     break;
                 case Keys.Down:
                     this.DesktopLocation += (e.Shift ? new Size(0, 10) : new Size(0, 1));
+                    break;
+
+                case Keys.Add:
+                    if (e.Control)
+                        SetZoom(_currentZoom + 10);
+                    else
+                        SetTransparency(_currentTransparency - 10);
+                    break;
+                case Keys.Subtract:
+                    if (e.Control)
+                        SetZoom(_currentZoom - 10);
+                    else
+                        SetTransparency(_currentTransparency + 10);
                     break;
             }
         }
@@ -159,7 +177,7 @@ namespace ViewTool
                 CreateMenuItem(
                     "Display",
                     "&Display",
-                    CreateMenuItem("Topmost","Top&most", Shortcut.CtrlM, ToggleTopmost),
+                    CreateMenuItem("Topmost","Top&most", Shortcut.CtrlT, ToggleTopmost),
                     CreateMenuItem("Borderless","&Borderless", Shortcut.CtrlB, ToggleBorderless),
                     CreateMenuItem("Clickthrough","&Clickthrough", Shortcut.CtrlI, ToggleClickthrough),
                     CreateMenuItem("Transparency","&Transparency"),
@@ -343,12 +361,14 @@ namespace ViewTool
         }
         private void SetTransparency(double transparencyValue)
         {
-            if (transparencyValue >= 99)
+            if (transparencyValue < 0 || 99 <= transparencyValue)
                 return;
 
             ClearCurrentTransparencyCheck();
 
             this.Opacity = (double)(100 - transparencyValue) / 100d;
+
+            _currentTransparency = transparencyValue;
 
             _currentTransparencyMenuItem = MenuItem($"Transparency{transparencyValue}");
             if (_currentTransparencyMenuItem == null)
@@ -386,6 +406,8 @@ namespace ViewTool
                 (int)(pbImageView.Image.Width * scale),
                 (int)(pbImageView.Image.Height * scale) + msMainMenu.Height
                 );
+
+            _currentZoom = zoom;
 
             _currentZoomMenuItem = MenuItem($"Zoom{zoom}");
             if (_currentZoomMenuItem == null)

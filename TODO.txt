@@ -8,3 +8,4 @@ Possibility to zoom inside form (show scrollbars)
  =============
  Auto align with current screen contents
  Show difference with screen contents
+ Fullscreen mode
