@@ -221,7 +221,7 @@ namespace ViewTool
             //cmsContextMenu.Items.AddRange(new[]
             //{
             //});
-            cmsContextMenu.Items.AddRange(DeepCloneMenuItemSubItems("Display"));
+            cmsContextMenu.Items.AddRange(CreateMenuItemSubItemsShadowCopies("Display"));
         }
 
 
@@ -496,21 +496,21 @@ namespace ViewTool
             return new ToolStripSeparator();
         }
 
-        private ToolStripMenuItem[] DeepCloneMenuItemSubItems(string name)
+        private ToolStripMenuItem[] CreateMenuItemSubItemsShadowCopies(string name)
         {
             var menuItem = MenuItem(name);
             var result = new ToolStripMenuItem[menuItem.DropDownItems.Count];
             for (int i = 0; i < menuItem.DropDownItems.Count; i++)
             {
                 var original = menuItem.DropDownItems[i] as ToolStripMenuItem;
-                var clone = DeepCloneMenuItem(original);
+                var clone = CreateMenuItemShadowCopy(original);
                 result[i] = clone;
                 if (clone.DropDownItems.Count == 0)
                     original.CheckedChanged += (s, e) => clone.Checked = ((ToolStripMenuItem)s).Checked;
             }
             return result;
         }
-        private ToolStripMenuItem DeepCloneMenuItem(ToolStripMenuItem menuItem)
+        private ToolStripMenuItem CreateMenuItemShadowCopy(ToolStripMenuItem menuItem)
         {
             if (menuItem.DropDownItems.Count == 0)
             {
@@ -523,7 +523,7 @@ namespace ViewTool
                 var subItems = new ToolStripMenuItem[menuItem.DropDownItems.Count];
                 for (int i = 0; i < menuItem.DropDownItems.Count; i++)
                 {
-                    var subItem = DeepCloneMenuItem(menuItem.DropDownItems[i] as ToolStripMenuItem);
+                    var subItem = CreateMenuItemShadowCopy(menuItem.DropDownItems[i] as ToolStripMenuItem);
                     subItems[i] = subItem;
                 }
                 var clone = new ToolStripMenuItem(menuItem.Text, null, subItems);
