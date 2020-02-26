@@ -41,6 +41,8 @@ namespace ViewTool
         private double ImageAspectRatio => pbImageView.Image.Width / (double)pbImageView.Image.Height;
         private double FormAspectRatio => (pbImageView.Image.Width + (Width - ClientSize.Width)) / (double)(pbImageView.Image.Height + msMainMenu.Height + (Height - ClientSize.Height));
 
+        private int _imageXOffset;
+        private int _imageYOffset;
         private int _imageWidthToFullWidth;
         private int _imageHeightToFullHeight;
 
@@ -62,6 +64,9 @@ namespace ViewTool
         {
             InitializeComponent();
 
+            var imageScreenRect = this.RectangleToScreen(pbImageView.Bounds);
+            _imageXOffset = (imageScreenRect.Left - this.Left);
+            _imageYOffset = (imageScreenRect.Top - this.Top);
             _imageWidthToFullWidth = (Width - ClientSize.Width);
             _imageHeightToFullHeight = (Height - ClientSize.Height + msMainMenu.Height);
 
@@ -135,6 +140,10 @@ namespace ViewTool
                 LoadImage(bitmap);
             }
         }
+        private void pbImageView_MouseDown(object sender, MouseEventArgs e)
+        {
+            WinApi.InvokeUserMoveWindow(this);
+        }
 
         protected override void WndProc(ref Message m)
         {
@@ -202,13 +211,17 @@ namespace ViewTool
                 var menuItem = CreateMenuItem($"Zoom{zoom}", $"{zoom} %", null, () => SetZoom(zoom));
                 zoomMenuItem.DropDownItems.Add(menuItem);
             }
-            var customZoomMenuItem = CreateMenuItem("ZoomCustom", "Custom", null, SetCustomZoom);
+            var customZoomMenuItem = CreateMenuItem("ZoomCustom", "Custom", null, SetCustomZoom_dialog);
             zoomMenuItem.DropDownItems.Add(customZoomMenuItem);
 
             MenuItem("Zoom100").ShortcutKeys = (Keys)Shortcut.Ctrl0;
         }
         private void InitContextMenu()
         {
+            //cmsContextMenu.Items.AddRange(new[]
+            //{
+            //});
+            cmsContextMenu.Items.AddRange(DeepCloneMenuItemSubItems("Display"));
         }
 
 
@@ -335,10 +348,35 @@ namespace ViewTool
         }
         private void ToggleBorderless()
         {
-            var menuItem = MenuItem("Borderless");
-            menuItem.Checked = !menuItem.Checked;
-            this.FormBorderStyle = menuItem.Checked ? FormBorderStyle.None : FormBorderStyle.SizableToolWindow;
-            msMainMenu.Visible = !menuItem.Checked;
+            this.SuspendLayout();
+            try
+            {
+                int imageWidth = pbImageView.Width;
+                int imageHeight = pbImageView.Height;
+
+                var menuItem = MenuItem("Borderless");
+                menuItem.Checked = !menuItem.Checked;
+                this.FormBorderStyle = menuItem.Checked ? FormBorderStyle.None : FormBorderStyle.Sizable;
+                msMainMenu.Visible = !menuItem.Checked;
+
+                bool borderVisible = !menuItem.Checked;
+                if (borderVisible)
+                {
+                    this.Location = new Point(this.Location.X - _imageXOffset, this.Location.Y - _imageYOffset);
+                    this.Width = (imageWidth + _imageWidthToFullWidth);
+                    this.Height = (imageHeight + _imageHeightToFullHeight);
+                }
+                else
+                {
+                    this.Location = new Point(this.Location.X + _imageXOffset, this.Location.Y + _imageYOffset);
+                    this.Width = imageWidth;
+                    this.Height = imageHeight;
+                }
+            }
+            finally
+            {
+                this.ResumeLayout();
+            }
         }
         private void ToggleClickthrough()
         {
@@ -417,7 +455,7 @@ namespace ViewTool
             }
             _currentZoomMenuItem.Checked = true;
         }
-        private void SetCustomZoom()
+        private void SetCustomZoom_dialog()
         {
             try
             {
@@ -456,6 +494,41 @@ namespace ViewTool
         private ToolStripSeparator CreateSeparator()
         {
             return new ToolStripSeparator();
+        }
+
+        private ToolStripMenuItem[] DeepCloneMenuItemSubItems(string name)
+        {
+            var menuItem = MenuItem(name);
+            var result = new ToolStripMenuItem[menuItem.DropDownItems.Count];
+            for (int i = 0; i < menuItem.DropDownItems.Count; i++)
+            {
+                var original = menuItem.DropDownItems[i] as ToolStripMenuItem;
+                var clone = DeepCloneMenuItem(original);
+                result[i] = clone;
+                if (clone.DropDownItems.Count == 0)
+                    original.CheckedChanged += (s, e) => clone.Checked = ((ToolStripMenuItem)s).Checked;
+            }
+            return result;
+        }
+        private ToolStripMenuItem DeepCloneMenuItem(ToolStripMenuItem menuItem)
+        {
+            if (menuItem.DropDownItems.Count == 0)
+            {
+                var clone = new ToolStripMenuItem(menuItem.Text, null, (s, e) => menuItem.PerformClick());
+                menuItem.CheckedChanged += (s, e) => clone.Checked = ((ToolStripMenuItem)s).Checked;
+                return clone;
+            }
+            else
+            {
+                var subItems = new ToolStripMenuItem[menuItem.DropDownItems.Count];
+                for (int i = 0; i < menuItem.DropDownItems.Count; i++)
+                {
+                    var subItem = DeepCloneMenuItem(menuItem.DropDownItems[i] as ToolStripMenuItem);
+                    subItems[i] = subItem;
+                }
+                var clone = new ToolStripMenuItem(menuItem.Text, null, subItems);
+                return clone;
+            }
         }
 
         private static Image GetBackgroundImage()

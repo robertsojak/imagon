@@ -1,0 +1,37 @@
+Left Click = Move
+Right Click = Context menu
+Shift + Resize = Keep aspect ratio
+Arrow = Move 1 pixel
+Shift + Arrow = Move 10 pixels
+Plus = Transparency -10%
+Minus = Transparency +10%
+Ctrl+Plus = Zoom +10%
+Ctrl+Minus = Zoom -10%
+Ctrl+0 = Reset Zoom
+Ctrl+O = Open
+Ctrl+V = Copy from Clipboard
+Ctrl+C = Copy to Clipboard
+Ctrl+T = Toggle Topmost
+Ctrl+B = Toggle Border
+Ctrl+I, Pause = Toggle Clickthrough
+Escape = Disable Clickthrough
+
+
+Left Click	Move
+Right Click	Context menu
+Shift + Resize	Keep aspect ratio
+Arrow	Move 1 pixel
+Shift + Arrow	Move 10 pixels
+Ctrl+O	Open
+Ctrl+V	Copy from Clipboard
+Ctrl+C	Copy to Clipboard
+Ctrl+T	Toggle Topmost
+Ctrl+B	Toggle Border
+Ctrl+I, Pause	Toggle Clickthrough
+Escape	Disable Clickthrough
+Plus	Transparency -10%
+Minus	Transparency +10%
+Ctrl+Plus	Zoom +10%
+Ctrl+Minus	Zoom -10%
+Ctrl+0	Reset Zoom
+

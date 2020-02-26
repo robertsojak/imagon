@@ -56,6 +56,7 @@
             this.pbImageView.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pbImageView.TabIndex = 0;
             this.pbImageView.TabStop = false;
+            this.pbImageView.MouseDown += new System.Windows.Forms.MouseEventHandler(this.pbImageView_MouseDown);
             // 
             // msMainMenu
             // 
@@ -76,6 +77,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(434, 411);
+            this.ContextMenuStrip = this.cmsContextMenu;
             this.Controls.Add(this.pnlImageView);
             this.MainMenuStrip = this.msMainMenu;
             this.Name = "MainForm";
