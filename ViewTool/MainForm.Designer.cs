@@ -1,4 +1,4 @@
-﻿namespace ViewTool
+﻿namespace Imagon
 {
     partial class MainForm
     {
@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.pnlImageView = new System.Windows.Forms.Panel();
             this.pbImageView = new System.Windows.Forms.PictureBox();
             this.msMainMenu = new System.Windows.Forms.MenuStrip();
@@ -79,9 +80,10 @@
             this.ClientSize = new System.Drawing.Size(434, 411);
             this.ContextMenuStrip = this.cmsContextMenu;
             this.Controls.Add(this.pnlImageView);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.msMainMenu;
             this.Name = "MainForm";
-            this.Text = "ViewTool";
+            this.Text = "Imagon";
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
             this.DragOver += new System.Windows.Forms.DragEventHandler(this.MainForm_DragOver);
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.MainForm_KeyDown);

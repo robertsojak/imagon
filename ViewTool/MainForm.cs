@@ -12,9 +12,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Microsoft.VisualBasic;
-using ViewTool.Properties;
+using Imagon.Properties;
 
-namespace ViewTool
+namespace Imagon
 {
     public partial class MainForm : Form
     {

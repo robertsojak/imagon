@@ -1,4 +1,5 @@
 
+Context menu &keys
 
 Possibility to zoom inside form (show scrollbars)
  - Max size of WinForm is desktop resolution
@@ -9,3 +10,4 @@ Possibility to zoom inside form (show scrollbars)
  Auto align with current screen contents
  Show difference with screen contents
  Fullscreen mode
+ Command line args
