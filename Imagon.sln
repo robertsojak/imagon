@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29728.190
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Imagon", "ViewTool\Imagon.csproj", "{817A62AD-5DCA-4D32-A3B8-D0FC1489BE3E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Imagon", "Imagon\Imagon.csproj", "{817A62AD-5DCA-4D32-A3B8-D0FC1489BE3E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CB4EB613-A9B3-4F5A-8293-42BFC7C7FB13}"
 	ProjectSection(SolutionItems) = preProject
