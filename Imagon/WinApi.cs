@@ -6,19 +6,25 @@ namespace Imagon
 {
     internal static class WinApi
     {
+        private static uint _lastInitialWindowStyle;
+
+
         public static uint EnableClickThrough(Form form)
         {
             const int GWL_ExStyle = -20;
             const int WS_EX_Transparent = 0x20;
             const int WS_EX_Layered = 0x80000;
             const int LWA_Alpha = 0x2;
-            uint initialWindowStyle = GetWindowLong(form.Handle, GWL_ExStyle);
-            SetWindowLong(form.Handle, GWL_ExStyle, initialWindowStyle | WS_EX_Layered | WS_EX_Transparent);
+            _lastInitialWindowStyle = GetWindowLong(form.Handle, GWL_ExStyle);
+            SetWindowLong(form.Handle, GWL_ExStyle, _lastInitialWindowStyle | WS_EX_Layered | WS_EX_Transparent);
             SetLayeredWindowAttributes(form.Handle, 0, (byte)(255 * form.Opacity), LWA_Alpha);
-            return initialWindowStyle;
+            return _lastInitialWindowStyle;
         }
-        public static void DisableClickThrough(Form form, uint initialWindowStyle)
+        public static void DisableClickThrough(Form form, uint initialWindowStyle = 0)
         {
+            if (initialWindowStyle == 0)
+                initialWindowStyle = _lastInitialWindowStyle;
+
             const int GWL_ExStyle = -20;
             const int WS_EX_Layered = 0x80000;
             SetWindowLong(form.Handle, GWL_ExStyle, initialWindowStyle | WS_EX_Layered);

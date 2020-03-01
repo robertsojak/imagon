@@ -38,9 +38,6 @@ namespace Imagon
         }
         private OpenFileDialog _openFileDialog;
 
-        private double ImageAspectRatio => pbImageView.Image.Width / (double)pbImageView.Image.Height;
-        private double FormAspectRatio => (pbImageView.Image.Width + (Width - ClientSize.Width)) / (double)(pbImageView.Image.Height + msMainMenu.Height + (Height - ClientSize.Height));
-
         private int _imageXOffset;
         private int _imageYOffset;
         private int _imageWidthToFullWidth;
@@ -53,8 +50,6 @@ namespace Imagon
         private double _currentTransparency;
         private double _customZoomValue = 1;
         private double _currentZoom;
-
-        private uint _initialWindowStyle;
 
         private bool _resizeInX;
         private bool _resizeInY;
@@ -76,7 +71,7 @@ namespace Imagon
             if (Clipboard.ContainsImage())
                 GetFromClipboard();
             else
-                LoadImage(GetBackgroundImage());
+                LoadImage(GetStartupImage());
 
             SetTransparency(0);
             SetZoom(100);
@@ -124,21 +119,29 @@ namespace Imagon
         }
         private void MainForm_DragOver(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.Bitmap))
-                e.Effect = DragDropEffects.Copy;
+            try
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.Bitmap))
+                    e.Effect = DragDropEffects.Copy;
+            }
+            catch { }
         }
         private void MainForm_DragDrop(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            try
             {
-                if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Any())
-                    LoadImage(files.First());
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Any())
+                        LoadImage(files.First());
+                }
+                else if (e.Data.GetDataPresent(DataFormats.Bitmap))
+                {
+                    var bitmap = e.Data.GetData(DataFormats.Bitmap) as Bitmap;
+                    LoadImage(bitmap);
+                }
             }
-            else if (e.Data.GetDataPresent(DataFormats.Bitmap))
-            {
-                var bitmap = e.Data.GetData(DataFormats.Bitmap) as Bitmap;
-                LoadImage(bitmap);
-            }
+            catch { }
         }
         private void pbImageView_MouseDown(object sender, MouseEventArgs e)
         {
@@ -218,9 +221,6 @@ namespace Imagon
         }
         private void InitContextMenu()
         {
-            //cmsContextMenu.Items.AddRange(new[]
-            //{
-            //});
             cmsContextMenu.Items.AddRange(CreateMenuItemSubItemsShadowCopies("Display"));
         }
 
@@ -272,7 +272,7 @@ namespace Imagon
 
         private void HandleWindowResizing(ref Message m)
         {
-            ClearCurrentZoomCheck();
+            UncheckCurrentZoom();
 
             if (!Control.ModifierKeys.HasFlag(Keys.Shift))
             {
@@ -336,7 +336,7 @@ namespace Imagon
         }
         private void SetImageSizeMode(bool keepAspectRatio)
         {
-            pbImageView.SizeMode = keepAspectRatio ? PictureBoxSizeMode.Zoom : PictureBoxSizeMode.StretchImage;
+            pbImageView.SizeMode = (keepAspectRatio ? PictureBoxSizeMode.Zoom : PictureBoxSizeMode.StretchImage);
         }
 
 
@@ -383,16 +383,16 @@ namespace Imagon
             var menuItem = MenuItem("Clickthrough");
             menuItem.Checked = !menuItem.Checked;
             if (menuItem.Checked)
-                _initialWindowStyle = WinApi.EnableClickThrough(this);
+                WinApi.EnableClickThrough(this);
             else
-                WinApi.DisableClickThrough(this, _initialWindowStyle);
+                WinApi.DisableClickThrough(this);
         }
         private void DisableClickthrough()
         {
             MenuItem("Clickthrough").Checked = true;
             ToggleClickthrough();
         }
-        private void ClearCurrentTransparencyCheck()
+        private void UncheckCurrentTransparency()
         {
             if (_currentTransparencyMenuItem != null)
                 _currentTransparencyMenuItem.Checked = false;
@@ -402,7 +402,7 @@ namespace Imagon
             if (transparencyValue < 0 || 99 <= transparencyValue)
                 return;
 
-            ClearCurrentTransparencyCheck();
+            UncheckCurrentTransparency();
 
             this.Opacity = (double)(100 - transparencyValue) / 100d;
 
@@ -430,14 +430,14 @@ namespace Imagon
             }
             catch (Exception) { }
         }
-        private void ClearCurrentZoomCheck()
+        private void UncheckCurrentZoom()
         {
             if (_currentZoomMenuItem != null)
                 _currentZoomMenuItem.Checked = false;
         }
         private void SetZoom(double zoom)
         {
-            ClearCurrentZoomCheck();
+            UncheckCurrentZoom();
 
             double scale = (zoom / 100d);
             this.ClientSize = new Size(
@@ -531,7 +531,7 @@ namespace Imagon
             }
         }
 
-        private static Image GetBackgroundImage()
+        private static Image GetStartupImage()
         {
             try
             {
