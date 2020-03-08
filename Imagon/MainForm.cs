@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -19,6 +20,7 @@ namespace Imagon
     public partial class MainForm : Form
     {
         private const string SUPPORTED_EXTENSIONS = "*.bmp;*.gif;*.jpg;*.jpeg;*.jpe;*.jif;*.jfif;*.jfi;*.png;*.tiff;*.tif";
+        private const PixelFormat PIXEL_FORMAT = PixelFormat.Format32bppArgb;
 
         private OpenFileDialog OpenFileDialog
         {
@@ -37,6 +39,13 @@ namespace Imagon
             }
         }
         private OpenFileDialog _openFileDialog;
+
+        private Image Image
+        {
+            get { return pbImageView.BackgroundImage; }
+            set { pbImageView.BackgroundImage = value; }
+        }
+        private Bitmap OverlayImage { get; set; }
 
         private int _imageXOffset;
         private int _imageYOffset;
@@ -170,7 +179,10 @@ namespace Imagon
                     break;
             }
         }
-
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            //base.OnPaintBackground(e);
+        }
 
         private void InitMainMenu()
         {
@@ -182,6 +194,7 @@ namespace Imagon
                     "&Image",
                     CreateMenuItem("Open","&Open", Shortcut.CtrlO, OpenFile),
                     CreateMenuItem("FromClipboard","From &Clipboard", Shortcut.CtrlV, GetFromClipboard),
+                    CreateMenuItem("FromUnderWindow", "From &Under Window", Shortcut.CtrlU, GetScreenshotUnderImage),
                     CreateMenuItem("ToClipboard","To C&lipboard", Shortcut.CtrlC, PasteToClipboard),
                     CreateSeparator(),
                     CreateMenuItem("Exit","&Exit", null, Exit)
@@ -193,8 +206,14 @@ namespace Imagon
                     CreateMenuItem("Borderless","&Borderless", Shortcut.CtrlB, ToggleBorderless),
                     CreateMenuItem("Clickthrough","&Clickthrough", Shortcut.CtrlI, ToggleClickthrough),
                     CreateMenuItem("Transparency","&Transparency"),
-                    CreateMenuItem("Zoom","&Zoom")
-                    )
+                    CreateMenuItem("Zoom","&Zoom"),
+                    CreateMenuItem("Overlay", "&Overlay")
+                    ),
+                //CreateMenuItem(
+                //    "Tools",
+                //    "&Tools",
+                //    CreateMenuItem("Diff","Diff",null,Diff)
+                //    )
             });
 
             MenuItem("Transparency").DropDownItems.AddRange(new[]
@@ -216,6 +235,13 @@ namespace Imagon
             }
             var customZoomMenuItem = CreateMenuItem("ZoomCustom", "Custom", null, SetCustomZoom_dialog);
             zoomMenuItem.DropDownItems.Add(customZoomMenuItem);
+
+            var overlayMenuItem = MenuItem("Overlay");
+            overlayMenuItem.DropDownItems.AddRange(new[]
+            {
+                CreateMenuItem("ShowOverlay", "&Show", Shortcut.CtrlL, ToggleOverlayVisible)
+            });
+            overlayMenuItem.Enabled = false;
 
             MenuItem("Zoom100").ShortcutKeys = (Keys)Shortcut.Ctrl0;
         }
@@ -258,12 +284,16 @@ namespace Imagon
         {
             try
             {
-                Clipboard.SetImage(pbImageView.Image);
+                Clipboard.SetImage(Image);
             }
             catch
             {
                 ShowError("Pasting to Clipboard failed");
             }
+        }
+        private void GetScreenshotUnderImage()
+        {
+            LoadImage(CreateScreenshotUnderImage());
         }
         private void Exit()
         {
@@ -292,8 +322,8 @@ namespace Imagon
             if (heightDiff > 0)
                 _resizeInY = true;
 
-            double ratioX = (windowRect.Width - _imageWidthToFullWidth) / (double)pbImageView.Image.Width;
-            double ratioY = (windowRect.Height - _imageHeightToFullHeight) / (double)pbImageView.Image.Height;
+            double ratioX = (windowRect.Width - _imageWidthToFullWidth) / (double)Image.Width;
+            double ratioY = (windowRect.Height - _imageHeightToFullHeight) / (double)Image.Height;
 
             double ratio = 1;
             if (_resizeInX && _resizeInY)
@@ -303,8 +333,8 @@ namespace Imagon
             else if (_resizeInY)
                 ratio = ratioY;
 
-            windowRect.Width = (int)(pbImageView.Image.Width * ratio + _imageWidthToFullWidth);
-            windowRect.Height = (int)(pbImageView.Image.Height * ratio + _imageHeightToFullHeight);
+            windowRect.Width = (int)(Image.Width * ratio + _imageWidthToFullWidth);
+            windowRect.Height = (int)(Image.Height * ratio + _imageHeightToFullHeight);
 
             Marshal.StructureToPtr(windowRect, m.LParam, false);
             m.Result = (IntPtr)1;
@@ -320,14 +350,27 @@ namespace Imagon
                     return;
                 }
 
-                var image = Image.FromFile(filePath);
+                var image = System.Drawing.Image.FromFile(filePath);
                 LoadImage(image);
             }
             catch { }
         }
         private void LoadImage(Image image)
         {
-            pbImageView.Image = image;
+            if (image == null)
+                return;
+
+            DisposeOverlayImage();
+
+            if (image.PixelFormat != PIXEL_FORMAT)
+            {
+                var img = new Bitmap(image.Width, image.Height, PIXEL_FORMAT);
+                using (var g = Graphics.FromImage(img))
+                    g.DrawImageUnscaled(image, 0, 0);
+                image = img;
+            }
+
+            Image = image;
             ResetSize();
         }
         private void ResetSize()
@@ -441,8 +484,8 @@ namespace Imagon
 
             double scale = (zoom / 100d);
             this.ClientSize = new Size(
-                (int)(pbImageView.Image.Width * scale),
-                (int)(pbImageView.Image.Height * scale) + msMainMenu.Height
+                (int)(Image.Width * scale),
+                (int)(Image.Height * scale) + msMainMenu.Height
                 );
 
             _currentZoom = zoom;
@@ -465,7 +508,104 @@ namespace Imagon
             }
             catch (Exception) { }
         }
+        private void ToggleOverlayVisible()
+        {
+            var menuItem = MenuItem("ShowOverlay");
+            menuItem.Checked = !menuItem.Checked;
 
+            if (menuItem.Checked)
+                ShowOverlayImage(OverlayImage);
+            else
+                HideOverlayImage();
+        }
+
+        private void ShowOverlayImage(Bitmap image)
+        {
+            OverlayImage = image;
+            pbImageView.Image = OverlayImage;
+
+            MenuItem("Overlay").Enabled = true;
+            MenuItem("ShowOverlay").Checked = true;
+        }
+        private void HideOverlayImage()
+        {
+            MenuItem("ShowOverlay").Checked = false;
+        }
+        private void DisposeOverlayImage()
+        {
+            if (OverlayImage == null)
+                return;
+
+            MenuItem("Overlay").Enabled = false;
+            pbImageView.Image = null;
+            OverlayImage.Dispose();
+            OverlayImage = null;
+        }
+
+        private void Diff()
+        {
+            var size = pbImageView.ClientSize;
+            int width = pbImageView.ClientSize.Width;
+            int height = pbImageView.ClientSize.Height;
+            var rect = new Rectangle(0, 0, width, height);
+
+            var image = new Bitmap(Image, size);
+            var screen = CreateScreenshotUnderImage();
+            var result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            result.MakeTransparent();
+
+            var imageData = image.LockBits(rect, ImageLockMode.ReadOnly, image.PixelFormat);
+            var screenData = screen.LockBits(rect, ImageLockMode.ReadOnly, screen.PixelFormat);
+            var resultData = result.LockBits(rect, ImageLockMode.WriteOnly, result.PixelFormat);
+            unsafe
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    byte* imageRow = (byte*)imageData.Scan0 + (y * imageData.Stride);
+                    byte* screenRow = (byte*)screenData.Scan0 + (y * screenData.Stride);
+                    byte* resultRow = (byte*)resultData.Scan0 + (y * resultData.Stride);
+                    for (int x = 0; x < width; x++)
+                    {
+                        //if (imagePx != screenPx)
+                        //    result.SetPixel(x, y, Color.Red);
+                    }
+                }
+            }
+
+            ShowOverlayImage(result);
+        }
+
+        private Bitmap CreateScreenshotWithoutForm(Rectangle screenSource)
+        {
+            try
+            {
+                //var screen = Screen.FromControl(this);
+                this.SendToBack();
+                return CreateScreenshot(screenSource);
+            }
+            catch
+            {
+                ShowError("Unable to create a screenshot");
+                return null;
+            }
+            finally
+            {
+                this.BringToFront();
+            }
+        }
+        private Bitmap CreateScreenshotUnderImage()
+        {
+            var screenSource = this.RectangleToScreen(pbImageView.Bounds);
+            return CreateScreenshotWithoutForm(screenSource);
+        }
+        private Bitmap CreateScreenshot(Rectangle screenSource)
+        {
+            var result = new Bitmap(screenSource.Width, screenSource.Height, PixelFormat.Format32bppRgb);
+            using (var graphics = Graphics.FromImage(result))
+                graphics.CopyFromScreen(screenSource.X, screenSource.Y, 0, 0, screenSource.Size, CopyPixelOperation.SourceCopy);
+
+            return result;
+        }
 
         private void ShowError(string message)
         {

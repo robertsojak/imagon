@@ -50,11 +50,12 @@
             // 
             // pbImageView
             // 
+            this.pbImageView.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.pbImageView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pbImageView.Location = new System.Drawing.Point(0, 24);
             this.pbImageView.Name = "pbImageView";
             this.pbImageView.Size = new System.Drawing.Size(434, 387);
-            this.pbImageView.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pbImageView.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pbImageView.TabIndex = 0;
             this.pbImageView.TabStop = false;
             this.pbImageView.MouseDown += new System.Windows.Forms.MouseEventHandler(this.pbImageView_MouseDown);
