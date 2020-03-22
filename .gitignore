@@ -260,3 +260,12 @@ paket-files/
 __pycache__/
 *.pyc
 /StartScreen.psd
+/Logo64.ico
+/Logo48.ico
+/Logo32.psd
+/Logo32.ico
+/Logo256.ico
+/Logo16.ico
+/Logo128.ico
+/Logo.psd
+/Logo.ico

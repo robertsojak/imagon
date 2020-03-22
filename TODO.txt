@@ -9,9 +9,12 @@ Possibility to zoom inside form (show scrollbars)
 
 Magnify (with desktop)
 
+Multiple image buffers (keep previous images in memory/file?)
+
  More features
  =============
  Auto align with current screen contents
  Show difference with screen contents
  Fullscreen mode
  Command line args
+ Measurement ruler - measure pixels / relative units (create ruler, enter real size -> measure using entered units)

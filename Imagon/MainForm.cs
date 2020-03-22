@@ -7,8 +7,10 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Policy;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -19,7 +21,19 @@ namespace Imagon
 {
     public partial class MainForm : Form
     {
-        private const string SUPPORTED_EXTENSIONS = "*.bmp;*.gif;*.jpg;*.jpeg;*.jpe;*.jif;*.jfif;*.jfi;*.png;*.tiff;*.tif";
+        private static readonly string[] SUPPORTED_OPEN_EXTENSIONS = { "bmp", "gif", "jpg", "jpeg", "jpe", "jif", "jfif", "jfi", "png", "tiff", "tif" };
+        private static readonly string SUPPORTED_OPEN_EXTENSIONS_FILTER = $"*.{string.Join(";*.", SUPPORTED_OPEN_EXTENSIONS)}";
+        private static readonly string[] SUPPORTED_SAVE_EXTENSIONS = { "bmp", "gif", "jpg", "jpeg", "png", "tiff", "tif" };
+        private static readonly string SUPPORTED_SAVE_EXTENSIONS_FILTER = $"*.{string.Join(";*.", SUPPORTED_SAVE_EXTENSIONS)}";
+        private static readonly Dictionary<string, ImageFormat> EXT_FORMAT_MAPPINGS = new Dictionary<string, ImageFormat> {
+            { "bmp", ImageFormat.Bmp },
+            { "gif", ImageFormat.Gif },
+            { "jpg", ImageFormat.Jpeg },
+            { "jpeg", ImageFormat.Jpeg },
+            { "png", ImageFormat.Png },
+            { "tif", ImageFormat.Tiff },
+            { "tiff", ImageFormat.Tiff }
+        };
         private const PixelFormat PIXEL_FORMAT = PixelFormat.Format32bppArgb;
 
         private OpenFileDialog OpenFileDialog
@@ -32,13 +46,33 @@ namespace Imagon
                     {
                         CheckFileExists = true,
                         AddExtension = false,
-                        Filter = $"Supported formats|{SUPPORTED_EXTENSIONS}|All files|*.*"
+                        Filter = $"Supported formats|{SUPPORTED_OPEN_EXTENSIONS_FILTER}|All files|*.*"
                     };
                 }
                 return _openFileDialog;
             }
         }
         private OpenFileDialog _openFileDialog;
+
+        private SaveFileDialog SaveFileDialog
+        {
+            get
+            {
+                if (_saveFileDialog == null)
+                {
+                    _saveFileDialog = new SaveFileDialog()
+                    {
+                        OverwritePrompt = true,
+                        AddExtension = false,
+                        CheckPathExists = false,
+                        Filter = $"Supported formats|{SUPPORTED_SAVE_EXTENSIONS_FILTER}"
+                    };
+                }
+                return _saveFileDialog;
+            }
+        }
+        private SaveFileDialog _saveFileDialog;
+
 
         private Image Image
         {
@@ -192,10 +226,13 @@ namespace Imagon
                 CreateMenuItem(
                     "Image",
                     "&Image",
-                    CreateMenuItem("Open","&Open", Shortcut.CtrlO, OpenFile),
+                    CreateMenuItem("Open","&Open...", Shortcut.CtrlO, OpenFile),
+                    CreateMenuItem("Download","&Download...", Shortcut.CtrlD, Download),
                     CreateMenuItem("FromClipboard","From &Clipboard", Shortcut.CtrlV, GetFromClipboard),
                     CreateMenuItem("FromUnderWindow", "From &Under Window", Shortcut.CtrlU, GetScreenshotUnderImage),
                     CreateMenuItem("ToClipboard","To C&lipboard", Shortcut.CtrlC, PasteToClipboard),
+                    CreateSeparator(),
+                    CreateMenuItem("SaveAs","&Save as...", Shortcut.CtrlS, SaveImage),
                     CreateSeparator(),
                     CreateMenuItem("Exit","&Exit", null, Exit)
                     ),
@@ -262,18 +299,60 @@ namespace Imagon
 
             LoadImage(filePath);
         }
+        private void Download()
+        {
+            try
+            {
+                bool retry;
+                do
+                {
+                    retry = false;
+                    string url = Interaction.InputBox("Url of the image", "Download Image");
+                    if (!string.IsNullOrEmpty(url))
+                    {
+                        if (!IsSupportedUrl(url))
+                        {
+                            ShowWarning("Url format is invalid or not supported");
+                            retry = true;
+                        }
+                        else
+                        {
+                            LoadImageFromUrl(url);
+                        }
+                    }
+                } while (retry);
+            }
+            catch { }
+        }
         private void GetFromClipboard()
         {
             try
             {
-                if (!Clipboard.ContainsImage())
+                bool hasSupportedContent = false;
+                if (Clipboard.ContainsImage())
                 {
-                    MessageBox.Show("Current clipboard doesn't contain image data");
-                    return;
+                    hasSupportedContent = true;
+                    var image = Clipboard.GetImage();
+                    LoadImage(image);
+                }
+                else if (Clipboard.ContainsText())
+                {
+                    string text = Clipboard.GetText(TextDataFormat.UnicodeText);
+                    text = text.Trim();
+                    if (IsImageFilePath(text))
+                    {
+                        hasSupportedContent = true;
+                        LoadImage(text);
+                    }
+                    else if (IsSupportedUrl(text))
+                    {
+                        hasSupportedContent = true;
+                        LoadImageFromUrl(text);
+                    }
                 }
 
-                var image = Clipboard.GetImage();
-                LoadImage(image);
+                if (!hasSupportedContent)
+                    MessageBox.Show("Current clipboard doesn't contain image data, file path or URL");
             }
             catch
             {
@@ -294,6 +373,37 @@ namespace Imagon
         private void GetScreenshotUnderImage()
         {
             LoadImage(CreateScreenshotUnderImage());
+        }
+        private void SaveImage()
+        {
+            try
+            {
+                bool retry;
+                do
+                {
+                    retry = false;
+                    var dialogResult = SaveFileDialog.ShowDialog();
+                    if (dialogResult != DialogResult.OK)
+                        return;
+
+                    string filePath = Path.GetFullPath(SaveFileDialog.FileName);
+                    string path = Path.GetDirectoryName(filePath);
+                    if (!Directory.Exists(path))
+                        Directory.CreateDirectory(path);
+
+                    string ext = Path.GetExtension(filePath).TrimStart('.');
+                    if (EXT_FORMAT_MAPPINGS.TryGetValue(ext, out var imageFormat))
+                    {
+                        Image.Save(filePath, imageFormat);
+                    }
+                    else
+                    {
+                        ShowWarning("Unsupported image format");
+                        retry = true;
+                    }
+                } while (retry);
+            }
+            catch { }
         }
         private void Exit()
         {
@@ -346,7 +456,7 @@ namespace Imagon
             {
                 if (!File.Exists(filePath))
                 {
-                    ShowError("File doesn't exist");
+                    ShowError($"File '{filePath}' doesn't exist");
                     return;
                 }
 
@@ -372,6 +482,21 @@ namespace Imagon
 
             Image = image;
             ResetSize();
+        }
+        private void LoadImageFromUrl(string url)
+        {
+            try
+            {
+                using (var client = new WebClient())
+                {
+                    using (var stream = client.OpenRead(url))
+                    {
+                        var image = new Bitmap(stream);
+                        LoadImage(image);
+                    }
+                }
+            }
+            catch { }
         }
         private void ResetSize()
         {
@@ -607,9 +732,17 @@ namespace Imagon
             return result;
         }
 
+        private void ShowMessage(string title, string message, MessageBoxIcon type = MessageBoxIcon.Information)
+        {
+            MessageBox.Show(message, title, MessageBoxButtons.OK, type);
+        }
+        private void ShowWarning(string message)
+        {
+            ShowMessage("Warning", message, MessageBoxIcon.Warning);
+        }
         private void ShowError(string message)
         {
-            MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ShowMessage("Error", message, MessageBoxIcon.Error);
         }
 
         private ToolStripMenuItem MenuItem(string name)
@@ -671,6 +804,41 @@ namespace Imagon
             }
         }
 
+        private bool IsImageFilePath(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            if (text.Length < 4)
+                return false;
+
+            if (text.Substring(1, 2) != @":\")
+                return false;
+
+            bool containsInvalidPathChar = (text.IndexOfAny(Path.GetInvalidPathChars()) != -1);
+            if (containsInvalidPathChar)
+                return false;
+
+            string extension = Path.GetExtension(text).TrimStart('.');
+            bool hasImageSupportedExtension = SUPPORTED_OPEN_EXTENSIONS.Any(e => e == extension);
+            if (!hasImageSupportedExtension)
+                return false;
+
+            return true;
+        }
+        private bool IsSupportedUrl(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            bool isHttp = (text.StartsWith("http://") || text.StartsWith("https://"));
+            if (!isHttp)
+                return false;
+
+            return Uri.IsWellFormedUriString(text, UriKind.Absolute);
+        }
+
+
         private static Image GetStartupImage()
         {
             try
@@ -686,6 +854,5 @@ namespace Imagon
                 return new Bitmap(1, 1);
             }
         }
-
     }
 }
