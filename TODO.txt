@@ -2,10 +2,7 @@
 Possibility to zoom inside form (show scrollbars)
  - Max size of WinForm is desktop resolution
 
- From Clipboard - recognize file path / URL
-
 ' Crop...' function
-'Lock' function (position, size)
 
 Magnify (with desktop)
 

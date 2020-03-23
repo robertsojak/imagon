@@ -94,6 +94,7 @@ namespace Imagon
         private double _customZoomValue = 1;
         private double _currentZoom;
 
+        private bool _isLocked;
         private bool _resizeInX;
         private bool _resizeInY;
 
@@ -134,16 +135,16 @@ namespace Imagon
                     break;
 
                 case Keys.Left:
-                    this.DesktopLocation += (e.Shift ? new Size(-10, 0) : new Size(-1, 0));
+                    AdjustFormPosition(e.Shift ? new Size(-10, 0) : new Size(-1, 0));
                     break;
                 case Keys.Right:
-                    this.DesktopLocation += (e.Shift ? new Size(10, 0) : new Size(1, 0));
+                    AdjustFormPosition(e.Shift ? new Size(10, 0) : new Size(1, 0));
                     break;
                 case Keys.Up:
-                    this.DesktopLocation += (e.Shift ? new Size(0, -10) : new Size(0, -1));
+                    AdjustFormPosition(e.Shift ? new Size(0, -10) : new Size(0, -1));
                     break;
                 case Keys.Down:
-                    this.DesktopLocation += (e.Shift ? new Size(0, 10) : new Size(0, 1));
+                    AdjustFormPosition(e.Shift ? new Size(0, 10) : new Size(0, 1));
                     break;
 
                 case Keys.Add:
@@ -195,6 +196,8 @@ namespace Imagon
         {
             const int WM_SIZING = 0x214;
             const int WM_EXITSIZEMOVE = 0x232;
+            const int WM_SYSCOMMAND = 0x0112;
+            const int SC_MOVE = 0xF010;
 
             switch (m.Msg)
             {
@@ -205,6 +208,14 @@ namespace Imagon
                 case WM_EXITSIZEMOVE:
                     _resizeInX = false;
                     _resizeInY = false;
+                    base.WndProc(ref m);
+                    break;
+
+                case WM_SYSCOMMAND:
+                    int command = m.WParam.ToInt32() & 0xfff0;
+                    if (command == SC_MOVE && _isLocked)
+                        return;
+
                     base.WndProc(ref m);
                     break;
 
@@ -239,6 +250,7 @@ namespace Imagon
                 CreateMenuItem(
                     "Display",
                     "&Display",
+                    CreateMenuItem("Lock","&Lock", Shortcut.CtrlL, ToggleLock),
                     CreateMenuItem("Topmost","Top&most", Shortcut.CtrlT, ToggleTopmost),
                     CreateMenuItem("Borderless","&Borderless", Shortcut.CtrlB, ToggleBorderless),
                     CreateMenuItem("Clickthrough","&Clickthrough", Shortcut.CtrlI, ToggleClickthrough),
@@ -276,7 +288,7 @@ namespace Imagon
             var overlayMenuItem = MenuItem("Overlay");
             overlayMenuItem.DropDownItems.AddRange(new[]
             {
-                CreateMenuItem("ShowOverlay", "&Show", Shortcut.CtrlL, ToggleOverlayVisible)
+                CreateMenuItem("ShowOverlay", "&Show", Shortcut.CtrlA, ToggleOverlayVisible)
             });
             overlayMenuItem.Enabled = false;
 
@@ -328,6 +340,9 @@ namespace Imagon
         {
             try
             {
+                if (_isLocked && !PromptUnlockImage())
+                    return;
+
                 bool hasSupportedContent = false;
                 if (Clipboard.ContainsImage())
                 {
@@ -372,6 +387,9 @@ namespace Imagon
         }
         private void GetScreenshotUnderImage()
         {
+            if (_isLocked && !PromptUnlockImage())
+                return;
+
             LoadImage(CreateScreenshotUnderImage());
         }
         private void SaveImage()
@@ -449,6 +467,13 @@ namespace Imagon
             Marshal.StructureToPtr(windowRect, m.LParam, false);
             m.Result = (IntPtr)1;
         }
+        private void AdjustFormPosition(Size delta)
+        {
+            if (_isLocked)
+                return;
+
+            this.DesktopLocation += delta;
+        }
 
         private void LoadImage(string filePath)
         {
@@ -508,6 +533,19 @@ namespace Imagon
         }
 
 
+        private void ToggleLock()
+        {
+            var menuItem = MenuItem("Lock");
+            menuItem.Checked = !menuItem.Checked;
+            _isLocked = menuItem.Checked;
+            this.SizeGripStyle = _isLocked ? SizeGripStyle.Hide : SizeGripStyle.Auto;
+            this.MaximizeBox = !_isLocked;
+            if (_isLocked)
+            {
+                this.MinimumSize = this.Size;
+                this.MaximumSize = this.Size;
+            }
+        }
         private void ToggleTopmost()
         {
             var menuItem = MenuItem("Topmost");
@@ -665,6 +703,11 @@ namespace Imagon
             pbImageView.Image = null;
             OverlayImage.Dispose();
             OverlayImage = null;
+        }
+
+        private bool PromptUnlockImage()
+        {
+            return false;
         }
 
         private void Diff()
