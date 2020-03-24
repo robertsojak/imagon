@@ -256,6 +256,7 @@ namespace Imagon
                     CreateMenuItem("Clickthrough","&Clickthrough", Shortcut.CtrlI, ToggleClickthrough),
                     CreateMenuItem("Transparency","&Transparency"),
                     CreateMenuItem("Zoom","&Zoom"),
+                    CreateMenuItem("Rotation", "&Rotate"),
                     CreateMenuItem("Overlay", "&Overlay")
                     ),
                 //CreateMenuItem(
@@ -284,6 +285,15 @@ namespace Imagon
             }
             var customZoomMenuItem = CreateMenuItem("ZoomCustom", "Custom", null, SetCustomZoom_dialog);
             zoomMenuItem.DropDownItems.Add(customZoomMenuItem);
+
+            MenuItem("Rotation").DropDownItems.AddRange(new[]
+            {
+                CreateMenuItem("RotateCW", "Clockwise", null, () => Rotate(90)),
+                CreateMenuItem("RotateCCW", "Counter Clockwise", null, () => Rotate(-90)),
+                CreateMenuItem("Rotate180", "180°", null, () => Rotate(180)),
+                CreateMenuItem("FlipHorizontal", "Flip Horizontal", null, () => FlipHorizontal()),
+                CreateMenuItem("FlipVertical", "Flip Vertical", null, () => FlipVertical())
+            });
 
             var overlayMenuItem = MenuItem("Overlay");
             overlayMenuItem.DropDownItems.AddRange(new[]
@@ -670,6 +680,39 @@ namespace Imagon
                 SetZoom(zoom);
             }
             catch (Exception) { }
+        }
+        private void Rotate(decimal angleDeg)
+        {
+            if (angleDeg == 90)
+            {
+                Image.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                SetZoom(_currentZoom);
+            }
+            else if (angleDeg == -90)
+            {
+                Image.RotateFlip(RotateFlipType.Rotate270FlipNone);
+                SetZoom(_currentZoom);
+            }
+            else if (angleDeg == 180)
+            {
+                Image.RotateFlip(RotateFlipType.Rotate180FlipNone);
+                pbImageView.Refresh();
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+
+        }
+        private void FlipHorizontal()
+        {
+            Image.RotateFlip(RotateFlipType.RotateNoneFlipX);
+            pbImageView.Refresh();
+        }
+        private void FlipVertical()
+        {
+            Image.RotateFlip(RotateFlipType.RotateNoneFlipY);
+            pbImageView.Refresh();
         }
         private void ToggleOverlayVisible()
         {
