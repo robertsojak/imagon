@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
@@ -98,6 +99,8 @@ namespace Imagon
         private bool _resizeInX;
         private bool _resizeInY;
 
+        private Canvas _canvas;
+
 
         public MainForm()
         {
@@ -106,8 +109,9 @@ namespace Imagon
             var imageScreenRect = this.RectangleToScreen(pbImageView.Bounds);
             _imageXOffset = (imageScreenRect.Left - this.Left);
             _imageYOffset = (imageScreenRect.Top - this.Top);
-            _imageWidthToFullWidth = (Width - ClientSize.Width);
-            _imageHeightToFullHeight = (Height - ClientSize.Height + msMainMenu.Height);
+            _imageWidthToFullWidth = (Width - pbImageView.ClientSize.Width);
+            //_imageHeightToFullHeight = (Height - ClientSize.Height + msMainMenu.Height);
+            _imageHeightToFullHeight = (Height - pbImageView.ClientSize.Height);
 
             InitMainMenu();
             InitContextMenu();
@@ -189,7 +193,20 @@ namespace Imagon
         }
         private void pbImageView_MouseDown(object sender, MouseEventArgs e)
         {
-            WinApi.InvokeUserMoveWindow(this);
+            if (_canvas.IsActive)
+            {
+                int x = (int)(e.X / (pbImageView.ClientSize.Width / (float)Image.Width));
+                int y = (int)(e.Y / (pbImageView.ClientSize.Height / (float)Image.Height));
+                _canvas.OnMouseDown(x, y);
+            }
+            else
+            {
+                WinApi.InvokeUserMoveWindow(this);
+            }
+        }
+        private void Canvas_NeedRepaint(object sender, EventArgs e)
+        {
+            pbImageView.Refresh();
         }
 
         protected override void WndProc(ref Message m)
@@ -228,6 +245,19 @@ namespace Imagon
         {
             //base.OnPaintBackground(e);
         }
+        private void pbImageView_Paint(object sender, PaintEventArgs e)
+        {
+            //if (_measureActive)
+            //{
+            //    var pen = new Pen(Color.Black, 1);
+            //    pen.DashStyle = DashStyle.Dash;
+            //    float rX = (pbImageView.ClientSize.Width / (float)Image.Width);
+            //    float rY = (pbImageView.ClientSize.Height / (float)Image.Height);
+            //    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            //    e.Graphics.DrawLine(pen, _measureStart.X * rX, _measureStart.Y * rY, _measureEnd.X * rX, _measureEnd.Y * rY);
+            //}
+            _canvas.Draw(e.Graphics);
+        }
 
         private void InitMainMenu()
         {
@@ -259,11 +289,12 @@ namespace Imagon
                     CreateMenuItem("Rotation", "&Rotate"),
                     CreateMenuItem("Overlay", "&Overlay")
                     ),
-                //CreateMenuItem(
-                //    "Tools",
-                //    "&Tools",
-                //    CreateMenuItem("Diff","Diff",null,Diff)
-                //    )
+                CreateMenuItem(
+                    "Tools",
+                    "&Tools",
+                    CreateMenuItem("Measure","Measure",null,StartMeasure)
+                    //CreateMenuItem("Diff","Diff",null,Diff)
+                    )
             });
 
             MenuItem("Transparency").DropDownItems.AddRange(new[]
@@ -442,16 +473,22 @@ namespace Imagon
         {
             UncheckCurrentZoom();
 
+            var windowRect = (WinApi.RECT)Marshal.PtrToStructure(m.LParam, typeof(WinApi.RECT));
+            double ratioX = (windowRect.Width - _imageWidthToFullWidth) / (double)Image.Width;
+            double ratioY = (windowRect.Height - _imageHeightToFullHeight) / (double)Image.Height;
+
             if (!Control.ModifierKeys.HasFlag(Keys.Shift))
             {
                 SetImageSizeMode(keepAspectRatio: false);
                 base.WndProc(ref m);
+
+                _canvas.ScaleX = (float)ratioX;
+                _canvas.ScaleY = (float)ratioY;
+
                 return;
             }
 
             SetImageSizeMode(keepAspectRatio: true);
-
-            var windowRect = (WinApi.RECT)Marshal.PtrToStructure(m.LParam, typeof(WinApi.RECT));
 
             int widthDiff = Math.Abs(Width - windowRect.Width);
             if (widthDiff > 0)
@@ -460,8 +497,6 @@ namespace Imagon
             if (heightDiff > 0)
                 _resizeInY = true;
 
-            double ratioX = (windowRect.Width - _imageWidthToFullWidth) / (double)Image.Width;
-            double ratioY = (windowRect.Height - _imageHeightToFullHeight) / (double)Image.Height;
 
             double ratio = 1;
             if (_resizeInX && _resizeInY)
@@ -476,6 +511,8 @@ namespace Imagon
 
             Marshal.StructureToPtr(windowRect, m.LParam, false);
             m.Result = (IntPtr)1;
+
+            _canvas.SetScale((float)ratio);
         }
         private void AdjustFormPosition(Size delta)
         {
@@ -516,8 +553,16 @@ namespace Imagon
             }
 
             Image = image;
+
+            _canvas = new Canvas(Image.Size);
+            _canvas.NeedRepaint += Canvas_NeedRepaint;
+
+            toolsControlPanel.ConnectTo(_canvas);
+
             ResetSize();
         }
+
+
         private void LoadImageFromUrl(string url)
         {
             try
@@ -656,12 +701,13 @@ namespace Imagon
             UncheckCurrentZoom();
 
             double scale = (zoom / 100d);
-            this.ClientSize = new Size(
-                (int)(Image.Width * scale),
-                (int)(Image.Height * scale) + msMainMenu.Height
-                );
+            this.Size = new Size(
+                (int)(Image.Width * scale) + _imageWidthToFullWidth,
+                (int)(Image.Height * scale) + _imageHeightToFullHeight
+            );
 
             _currentZoom = zoom;
+            _canvas.SetScale((float)scale);
 
             _currentZoomMenuItem = MenuItem($"Zoom{zoom}");
             if (_currentZoomMenuItem == null)
@@ -685,16 +731,19 @@ namespace Imagon
         {
             if (angleDeg == 90)
             {
+                _canvas.Rotation += 90;
                 Image.RotateFlip(RotateFlipType.Rotate90FlipNone);
                 SetZoom(_currentZoom);
             }
             else if (angleDeg == -90)
             {
+                _canvas.Rotation -= 90;
                 Image.RotateFlip(RotateFlipType.Rotate270FlipNone);
                 SetZoom(_currentZoom);
             }
             else if (angleDeg == 180)
             {
+                _canvas.Rotation += 180;
                 Image.RotateFlip(RotateFlipType.Rotate180FlipNone);
                 pbImageView.Refresh();
             }
@@ -753,6 +802,10 @@ namespace Imagon
             return false;
         }
 
+        private void StartMeasure()
+        {
+            _canvas.ActivateTool(_canvas.Tools.Measure);
+        }
         private void Diff()
         {
             var size = pbImageView.ClientSize;
@@ -940,5 +993,6 @@ namespace Imagon
                 return new Bitmap(1, 1);
             }
         }
+
     }
 }
