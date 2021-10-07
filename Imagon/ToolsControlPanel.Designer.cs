@@ -30,12 +30,15 @@
         {
             this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
             this.pbMeasure = new System.Windows.Forms.PictureBox();
+            this.pbRectangle = new System.Windows.Forms.PictureBox();
             this.flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbMeasure)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pbRectangle)).BeginInit();
             this.SuspendLayout();
             // 
             // flowLayoutPanel1
             // 
+            this.flowLayoutPanel1.Controls.Add(this.pbRectangle);
             this.flowLayoutPanel1.Controls.Add(this.pbMeasure);
             this.flowLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flowLayoutPanel1.Location = new System.Drawing.Point(0, 0);
@@ -46,12 +49,22 @@
             // pbMeasure
             // 
             this.pbMeasure.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.pbMeasure.Location = new System.Drawing.Point(3, 3);
+            this.pbMeasure.Location = new System.Drawing.Point(39, 3);
             this.pbMeasure.Name = "pbMeasure";
             this.pbMeasure.Size = new System.Drawing.Size(30, 30);
             this.pbMeasure.TabIndex = 0;
             this.pbMeasure.TabStop = false;
             this.pbMeasure.Click += new System.EventHandler(this.pbMeasure_Click);
+            // 
+            // pbRectangle
+            // 
+            this.pbRectangle.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.pbRectangle.Location = new System.Drawing.Point(3, 3);
+            this.pbRectangle.Name = "pbRectangle";
+            this.pbRectangle.Size = new System.Drawing.Size(30, 30);
+            this.pbRectangle.TabIndex = 1;
+            this.pbRectangle.TabStop = false;
+            this.pbRectangle.Click += new System.EventHandler(this.pbRectangle_Click);
             // 
             // ToolsControlPanel
             // 
@@ -62,6 +75,7 @@
             this.Size = new System.Drawing.Size(124, 309);
             this.flowLayoutPanel1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pbMeasure)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pbRectangle)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -69,5 +83,6 @@
         #endregion
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
         private System.Windows.Forms.PictureBox pbMeasure;
+        private System.Windows.Forms.PictureBox pbRectangle;
     }
 }

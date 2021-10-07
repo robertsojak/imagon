@@ -75,7 +75,7 @@ namespace Imagon
         private SaveFileDialog _saveFileDialog;
 
 
-        private Image Image
+        internal Image Image
         {
             get { return pbImageView.BackgroundImage; }
             set { pbImageView.BackgroundImage = value; }
@@ -204,6 +204,24 @@ namespace Imagon
                 WinApi.InvokeUserMoveWindow(this);
             }
         }
+        private void pbImageView_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_canvas.IsActive)
+            {
+                int x = (int)(e.X / (pbImageView.ClientSize.Width / (float)Image.Width));
+                int y = (int)(e.Y / (pbImageView.ClientSize.Height / (float)Image.Height));
+                _canvas.OnMouseMove(x, y);
+            }
+        }
+        private void pbImageView_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (_canvas.IsActive)
+            {
+                int x = (int)(e.X / (pbImageView.ClientSize.Width / (float)Image.Width));
+                int y = (int)(e.Y / (pbImageView.ClientSize.Height / (float)Image.Height));
+                _canvas.OnMouseUp(x, y);
+            }
+        }
         private void Canvas_NeedRepaint(object sender, EventArgs e)
         {
             pbImageView.Refresh();
@@ -292,7 +310,8 @@ namespace Imagon
                 CreateMenuItem(
                     "Tools",
                     "&Tools",
-                    CreateMenuItem("Measure","Measure",null,StartMeasure)
+                    CreateMenuItem("Measure","Measure",null,StartMeasure),
+                    CreateMenuItem("OCR","OCR", null, OpenOcr)
                     //CreateMenuItem("Diff","Diff",null,Diff)
                     )
             });
@@ -805,6 +824,11 @@ namespace Imagon
         private void StartMeasure()
         {
             _canvas.ActivateTool(_canvas.Tools.Measure);
+        }
+        private void OpenOcr()
+        {
+            var dlg = new OcrForm(this);
+            dlg.ShowDialog();
         }
         private void Diff()
         {

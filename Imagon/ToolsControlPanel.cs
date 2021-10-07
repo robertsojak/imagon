@@ -29,5 +29,10 @@ namespace Imagon
         {
             _canvas.ActivateTool(_canvas.Tools.Measure);
         }
+
+        private void pbRectangle_Click(object sender, EventArgs e)
+        {
+            _canvas.ActivateTool(_canvas.Tools.Rectangle);
+        }
     }
 }

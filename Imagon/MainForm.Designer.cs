@@ -62,6 +62,8 @@
             this.pbImageView.TabStop = false;
             this.pbImageView.Paint += new System.Windows.Forms.PaintEventHandler(this.pbImageView_Paint);
             this.pbImageView.MouseDown += new System.Windows.Forms.MouseEventHandler(this.pbImageView_MouseDown);
+            this.pbImageView.MouseMove += new System.Windows.Forms.MouseEventHandler(this.pbImageView_MouseMove);
+            this.pbImageView.MouseUp += new System.Windows.Forms.MouseEventHandler(this.pbImageView_MouseUp);
             // 
             // msMainMenu
             // 

@@ -95,9 +95,22 @@ namespace Imagon
         {
             _activeTool.OnMouseDown(x, y);
         }
-        public void AddElement(MeasureElement element)
+        public void OnMouseMove(int x, int y)
+        {
+            _activeTool.OnMouseMove(x, y);
+        }
+        public void OnMouseUp(int x, int y)
+        {
+            _activeTool.OnMouseUp(x, y);
+        }
+
+        public void AddElement(CanvasElement element)
         {
             _elements.Add(element);
+        }
+        public void RemoveElement(CanvasElement element)
+        {
+            _elements.Remove(element);
         }
     }
 }
